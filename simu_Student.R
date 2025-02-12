@@ -10,10 +10,9 @@ tau = .001  # in the prior
 n = 100  # samples
 n_test = n*.2
 p = 200   # predictors
-s0 = 25    # true sparsity
+s0 = 5    # true sparsity
 
 mytau = tau_quantile = 0.9
-
 rho.x = 0.5 ; S = matrix(rho.x, ncol = p, nrow = p);diag(S) = 1;
 for (i in 1:(p-1))for (j in (i+1):p)S[i,j] = rho.x^{abs(i-j)}
 out = eigen(S, symmetric = TRUE)
@@ -24,7 +23,7 @@ for (ss in 1:100) {
   # generate data 
   beta0 = rep(0,p)
   beta0[1:s0] = rnorm(s0,0,sd=1)
-  xall = matrix(rnorm((n + n_test)*p),nc=p)%*% S.sqrt
+  xall = matrix(rnorm((n + n_test)*p),nc=p)
   ###  (1 + xall[,1])*
   yall = xall%*%beta0 + rnorm(n +n_test ,sd=3)   # rnorm(n +n_test ,sd=3) # rcauchy(n+n_test) # 2*rt(n+n_test,df=3)
   xtest = xall[(n+1):(n+ n_test),]
@@ -46,7 +45,7 @@ for (ss in 1:100) {
   
   ### MALA
   Bm_hinge = matrix( 0 ,nrow = p)
-  h = 1/(p)^3.96 # 2.4
+  h = 1/(p)^4 # 2.4
   a = 0  
   M = hsquantile
   for(s in 1:Iters){
@@ -83,6 +82,7 @@ for (ss in 1:100) {
   
   print(ss)
 }
-save.image("simuOUT/simNOR_n100p200s25_tau09_rX.rda")
+save.image("simuOUT/simST_n100p200s5_tau09_rX.rda")
+
 
 

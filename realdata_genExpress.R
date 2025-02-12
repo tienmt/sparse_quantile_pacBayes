@@ -1,11 +1,11 @@
 ### sparse quantile
-setwd('/Users/thetm/Dropbox/ongoing_works/ON Going/sparse QUANTILE regres/Rcodes/')
+#setwd('/Users/thetm/Dropbox/ongoing_works/ON Going/sparse QUANTILE regres/Rcodes/')
 my.quantile.loss = function(u,tau) (u>0)*tau*u + (u<=0)*(1-tau)*abs(u)
 source('HSBQR.R')
 library(rqPen); library(hqreg)
 Iters = 30000
 burnin = 500
-tau = 1  # in the prior
+tau = 0.00001  # in the prior
 
 # random data generation
 library(abess)
@@ -17,7 +17,7 @@ trim32[,1:p] <- scale(trim32[,1:p])
 
 mytau = 0.9
 
-lasso = mala = lmc = horSH = list()
+lasso = mala = lmc = horSH = enet= list()
 ac = c()
 for (ss in 1:100) {
   # generate data 
@@ -31,6 +31,11 @@ for (ss in 1:100) {
   cv.lasso.hqreg = cv.hqreg(X, Y, FUN = 'hqreg_raw', nfolds = 5,intercept = FALSE, method = 'quantile',tau = mytau,alpha = 1)
   predict.lasso = predict(cv.lasso.hqreg, Xtest, lambda = "lambda.min")
   lasso[[ss]] = c(mean( my.quantile.loss(Ytest - predict.lasso,tau = mytau)) ,0 )
+  cv.enet.hqreg = cv.hqreg(X, Y, FUN = 'hqreg_raw', nfolds = 5,intercept = FALSE, method = 'quantile',tau = mytau,alpha = .5)
+  predict.enet = predict(cv.enet.hqreg, Xtest, lambda = "lambda.min")
+  enet[[ss]] = c(mean( my.quantile.loss(Ytest - predict.enet,tau = mytau)) ,0 )
+  ### horseshoe bayes
+  hsquantile = HSBQR(Y,X,quant = mytau, nsave = 1000,nburn = 500,thin = 1,iter = 1000)
   
   while(sum(is.na(coefficients(cv.lasso.hqreg)))==500 ){
     cv.lasso.hqreg = cv.hqreg(X, Y, FUN = 'hqreg_raw', nfolds = 5,intercept = FALSE, method = 'quantile',tau = mytau,alpha = 1)
@@ -40,9 +45,9 @@ for (ss in 1:100) {
   
   ### MALA
   Bm_hinge = matrix( 0 ,nrow = p)
-  h = 1/(p)^2.1 # 2.4
+  h = 1/(p*n)^2.732
   a = 0  
-  M = coefficients(cv.lasso.hqreg)
+  M = hsquantile
   for(s in 1:Iters){
     YXm = Y-X%*%M
     tam = M + h*tX%*%( YXm > 0 )*mytau + h*tX%*%( YXm <= 0 )*(mytau-1) -
@@ -64,8 +69,8 @@ for (ss in 1:100) {
   
   ### LMC
   Bm_lmc = matrix( 0 ,nrow = p)
-  h = 1/(p)^3 # 2.4
-  M = coefficients(cv.lasso.hqreg)
+  h = 1/(p*n)^3/2 # 2.4
+  M = hsquantile
   for(s in 1:Iters){
     YXm = Y-X%*%M
     M = M + h*tX%*%( YXm > 0 )*mytau + h*tX%*%( YXm <= 0 )*(mytau-1) - h*sum(4*M/(tau^2 + M^2) ) +sqrt(2*h)*rnorm(p)
@@ -74,8 +79,6 @@ for (ss in 1:100) {
   lmc[[ss]] = c(mean( my.quantile.loss(Ytest - Xtest%*%Bm_lmc,tau = mytau)) , 0)
   mala[[ss]] = c(mean( my.quantile.loss(Ytest - Xtest%*%Bm_hinge,tau = mytau)), 0 )
   
-  ### horseshoe bayes
-  hsquantile = HSBQR(Y,X,quant = mytau, nsave = 1000,nburn = 500,thin = 1,iter = 1000)
   horSH[[ss]] = c(mean( my.quantile.loss(Ytest - Xtest%*%hsquantile,tau = mytau)), 0)
   
   print(ss)
